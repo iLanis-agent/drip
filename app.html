@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drip - Coffee Brew Timer</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#f5efe6; color:#3b2a20; min-height:100vh; padding:24px 16px 60px; }
+  .wrap { max-width:560px; margin:0 auto; }
+  header { text-align:center; margin-bottom:20px; }
+  header h1 { font-size:34px; letter-spacing:-.5px; }
+  header p { color:#8a7360; margin-top:4px; font-size:14px; }
+  .about { display:inline-block; margin-top:6px; font-size:12px; color:#b06a2c; text-decoration:none; }
+  .card { background:#fff; border-radius:16px; padding:18px; margin-bottom:14px; box-shadow:0 2px 10px rgba(59,42,32,.07); }
+  .lbl { font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:#a08a76; margin-bottom:10px; }
+  #methods { display:flex; flex-wrap:wrap; gap:8px; }
+  .mchip { border:2px solid #e5d9c8; background:#fff; border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; color:#6b5544; }
+  .mchip.on { border-color:#b06a2c; background:#fdf3e7; color:#8a4f1d; font-weight:600; }
+  .seg { display:flex; gap:6px; margin-bottom:14px; }
+  .seg button { flex:1; border:2px solid #e5d9c8; background:#fff; border-radius:10px; padding:8px 0; font-size:13px; cursor:pointer; color:#6b5544; }
+  .seg button.on { border-color:#b06a2c; background:#fdf3e7; color:#8a4f1d; font-weight:600; }
+  .doserow { display:flex; align-items:center; justify-content:space-between; }
+  .stepper { display:flex; align-items:center; gap:12px; }
+  .stepper button { width:38px; height:38px; border-radius:50%; border:2px solid #e5d9c8; background:#fff; font-size:20px; cursor:pointer; color:#8a4f1d; }
+  .stepper button:active { background:#f3e8d8; }
+  .grams { font-size:26px; font-weight:700; min-width:86px; text-align:center; }
+  .grams small { font-size:13px; font-weight:400; color:#a08a76; }
+  .ratio-note { text-align:center; color:#a08a76; font-size:12px; margin-top:10px; }
+  #clock { font-size:64px; font-weight:800; text-align:center; letter-spacing:-2px; font-variant-numeric:tabular-nums; }
+  #stepname { text-align:center; color:#8a4f1d; font-weight:600; margin:2px 0 12px; min-height:20px; }
+  .bar { height:8px; background:#f0e6d6; border-radius:99px; overflow:hidden; margin-bottom:14px; }
+  #fill { height:100%; width:0%; background:#b06a2c; transition:width .3s linear; }
+  .tbtns { display:flex; gap:10px; }
+  .tbtns button { flex:1; border:none; border-radius:12px; padding:13px 0; font-size:15px; font-weight:600; cursor:pointer; }
+  #startpause { background:#3b2a20; color:#fff; }
+  #reset { background:#efe5d3; color:#6b5544; }
+  .srow { display:flex; gap:12px; padding:12px 10px; border-radius:12px; align-items:baseline; }
+  .srow.active { background:#fdf3e7; outline:2px solid #b06a2c; }
+  .srow.done { opacity:.45; }
+  .stime { font-variant-numeric:tabular-nums; font-size:12px; color:#a08a76; min-width:74px; }
+  .slabel { font-weight:700; font-size:14px; }
+  .starget { color:#8a4f1d; font-size:13px; font-weight:600; }
+  .snote { color:#8a7360; font-size:12px; margin-top:2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>&#9749; Drip</h1>
+    <p>Dial in your ratio, start the timer, pour on cue.</p>
+    <a class="about" href="index.html">&larr; About</a>
+  </header>
+
+  <div class="card">
+    <div class="lbl">Brew method</div>
+    <div id="methods"></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Strength</div>
+    <div class="seg" id="strength">
+      <button data-s="mild">Mild</button>
+      <button data-s="standard" class="on">Standard</button>
+      <button data-s="strong">Strong</button>
+    </div>
+    <div class="doserow">
+      <div>
+        <div class="lbl" style="margin-bottom:4px">Coffee</div>
+        <div class="stepper">
+          <button id="cdown">&minus;</button>
+          <div class="grams" id="coffeeVal">15<small> g</small></div>
+          <button id="cup">+</button>
+        </div>
+      </div>
+      <div style="font-size:22px;color:#c9b9a4">&#10142;</div>
+      <div style="text-align:right">
+        <div class="lbl" style="margin-bottom:4px">Water</div>
+        <div class="grams" id="waterVal">250<small> g</small></div>
+      </div>
+    </div>
+    <div class="ratio-note" id="ratioNote"></div>
+  </div>
+
+  <div class="card">
+    <div id="clock">0:00</div>
+    <div id="stepname">Ready when you are</div>
+    <div class="bar"><div id="fill"></div></div>
+    <div class="tbtns">
+      <button id="startpause">Start brew</button>
+      <button id="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Brew steps</div>
+    <div id="steps"></div>
+  </div>
+</div>
+
+<script>
+var METHODS = [
+  {name:'V60 Pour Over', ratio:16.7, coffee:15, steps:[
+    {label:'Bloom', frac:0.16, t0:0, t1:45, note:'Saturate the grounds, gentle swirl'},
+    {label:'Second pour', frac:0.5, t0:45, t1:75, note:'Slow spiral from the center out'},
+    {label:'Final pour', frac:1.0, t0:90, t1:120, note:'Top up, keep the bed level'},
+    {label:'Drawdown', frac:1.0, t0:120, t1:195, note:'Let it drain - aim for a flat coffee bed'}]},
+  {name:'Chemex', ratio:16, coffee:20, steps:[
+    {label:'Bloom', frac:0.15, t0:0, t1:45, note:'Saturate, swirl once'},
+    {label:'Second pour', frac:0.5, t0:45, t1:90, note:'Pour in slow circles'},
+    {label:'Final pour', frac:1.0, t0:105, t1:150, note:'Fill to target weight'},
+    {label:'Drawdown', frac:1.0, t0:150, t1:270, note:'Thick filter drains slow - be patient'}]},
+  {name:'French Press', ratio:15, coffee:20, steps:[
+    {label:'Add water', frac:1.0, t0:0, t1:30, note:'Pour all water, wet every ground'},
+    {label:'Steep', frac:1.0, t0:30, t1:270, note:'Lid on, hands off'},
+    {label:'Break the crust', frac:1.0, t0:270, t1:300, note:'Stir the top, skim off foam'},
+    {label:'Plunge', frac:1.0, t0:300, t1:330, note:'Press slowly, stop above the bed'}]},
+  {name:'AeroPress', ratio:13, coffee:15, steps:[
+    {label:'Add water', frac:1.0, t0:0, t1:30, note:'Pour to target, all at once'},
+    {label:'Stir', frac:1.0, t0:30, t1:40, note:'Three gentle turns'},
+    {label:'Steep', frac:1.0, t0:40, t1:110, note:'Cap on, let it sit'},
+    {label:'Press', frac:1.0, t0:110, t1:140, note:'Steady pressure, stop at the hiss'}]},
+  {name:'Moka Pot', ratio:10, coffee:18, steps:[
+    {label:'Fill and assemble', frac:1.0, t0:0, t1:60, note:'Hot water to the valve, level the basket'},
+    {label:'Heat', frac:1.0, t0:60, t1:330, note:'Medium-low, lid open'},
+    {label:'Watch for gurgle', frac:1.0, t0:330, t1:390, note:'Pull off heat when it sputters'}]}
+];
+var STRENGTH = {mild:2, standard:0, strong:-2};
+var state = {m:0, s:'standard', coffee:15, elapsed:0, running:false, base:0, startTs:0, cur:-1};
+try {
+  var saved = JSON.parse(localStorage.getItem('drip-state')||'null');
+  if (saved) { state.m=saved.m||0; state.s=saved.s||'standard'; state.coffee=saved.coffee||15; }
+} catch(_) {}
+function save(){ try{ localStorage.setItem('drip-state', JSON.stringify({m:state.m,s:state.s,coffee:state.coffee})); }catch(_){}}
+function ratio(){ return METHODS[state.m].ratio + STRENGTH[state.s]; }
+function water(){ return Math.round(state.coffee * ratio()); }
+function tgt(frac){ var w = Math.round(water()*frac/5)*5; return Math.max(w, Math.round(state.coffee*2)); }
+function fmt(sec){ sec=Math.max(0,Math.floor(sec)); return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); }
+function $(id){ return document.getElementById(id); }
+
+function renderMethods(){
+  var h='';
+  METHODS.forEach(function(m,i){ h+='<button class="mchip'+(i===state.m?' on':'')+'" data-i="'+i+'">'+m.name+'</button>'; });
+  $('methods').innerHTML=h;
+  document.querySelectorAll('.mchip').forEach(function(c){
+    c.onclick=function(){ state.m=parseInt(c.getAttribute('data-i')); state.coffee=METHODS[state.m].coffee; resetTimer(); save(); renderAll(); };
+  });
+}
+function renderDose(){
+  $('coffeeVal').innerHTML=state.coffee+'<small> g</small>';
+  $('waterVal').innerHTML=water()+'<small> g</small>';
+  $('ratioNote').textContent='1:'+ratio().toFixed(1).replace(/\.0$/,'')+' ratio &middot; tap a method to load its classic dose';
+  $('ratioNote').innerHTML='1:'+ratio().toFixed(1).replace(/\.0$/,'')+' ratio &middot; switching method reloads the classic dose';
+  document.querySelectorAll('#strength button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-s')===state.s);
+  });
+}
+function renderSteps(){
+  var steps=METHODS[state.m].steps, h='';
+  steps.forEach(function(st,i){
+    var cls='srow';
+    if(state.elapsed>=st.t1) cls+=' done';
+    else if(state.elapsed>=st.t0) cls+=' active';
+    h+='<div class="'+cls+'"><div class="stime">'+fmt(st.t0)+' - '+fmt(st.t1)+'</div>'+
+      '<div><span class="slabel">'+st.label+'</span> &middot; <span class="starget">'+tgt(st.frac)+' g total</span>'+
+      '<div class="snote">'+st.note+'</div></div></div>';
+  });
+  $('steps').innerHTML=h;
+}
+function renderClock(){
+  $('clock').textContent=fmt(state.elapsed);
+  var steps=METHODS[state.m].steps, total=steps[steps.length-1].t1;
+  $('fill').style.width=Math.min(100, 100*state.elapsed/total)+'%';
+  var label='Ready when you are';
+  if(state.elapsed>0 || state.running){
+    if(state.elapsed>=total) label='Done - enjoy your coffee';
+    else steps.forEach(function(st){ if(state.elapsed>=st.t0 && state.elapsed<st.t1) label=st.label; });
+    if(!state.running && state.elapsed>0 && state.elapsed<total) label+=' (paused)';
+  }
+  $('stepname').textContent=label;
+  $('startpause').textContent = state.running ? 'Pause' : (state.elapsed>0 ? 'Resume' : 'Start brew');
+}
+function renderAll(){ renderMethods(); renderDose(); renderSteps(); renderClock(); }
+
+var actx=null;
+function beep(n){
+  try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    for(var i=0;i<n;i++){
+      (function(i){
+        var o=actx.createOscillator(), g=actx.createGain();
+        o.connect(g); g.connect(actx.destination);
+        o.frequency.value=880; g.gain.value=0.15;
+        var t=actx.currentTime+i*0.18;
+        g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+        o.start(t); o.stop(t+0.16);
+      })(i);
+    }
+  }catch(_){}
+}
+function resetTimer(){ state.elapsed=0; state.running=false; state.base=0; state.cur=-1; }
+function stepIndex(){
+  var steps=METHODS[state.m].steps, idx=-1;
+  steps.forEach(function(st,i){ if(state.elapsed>=st.t0 && state.elapsed<st.t1) idx=i; });
+  return idx;
+}
+setInterval(function(){
+  if(!state.running) return;
+  state.elapsed=state.base+(Date.now()-state.startTs)/1000;
+  var steps=METHODS[state.m].steps, total=steps[steps.length-1].t1;
+  var idx=stepIndex();
+  if(idx!==state.cur && state.elapsed<total){ if(state.cur!==-1||state.elapsed>0.3) beep(2); state.cur=idx; }
+  if(state.elapsed>=total){ state.elapsed=total; state.running=false; beep(3); }
+  renderClock(); renderSteps();
+},250);
+
+$('startpause').onclick=function(){
+  var steps=METHODS[state.m].steps, total=steps[steps.length-1].t1;
+  if(state.running){ state.base=state.elapsed; state.running=false; }
+  else{
+    if(state.elapsed>=total) resetTimer();
+    state.startTs=Date.now(); state.running=true;
+    if(state.elapsed===0) beep(1);
+  }
+  renderClock();
+};
+$('reset').onclick=function(){ resetTimer(); renderClock(); renderSteps(); };
+$('cdown').onclick=function(){ state.coffee=Math.max(5,state.coffee-1); save(); renderDose(); renderSteps(); };
+$('cup').onclick=function(){ state.coffee=Math.min(80,state.coffee+1); save(); renderDose(); renderSteps(); };
+document.querySelectorAll('#strength button').forEach(function(b){
+  b.onclick=function(){ state.s=b.getAttribute('data-s'); save(); renderDose(); renderSteps(); };
+});
+renderAll();
+</script>
+</body>
+</html>
