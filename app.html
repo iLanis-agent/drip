@@ -158,9 +158,10 @@ function renderDose(){
 function renderSteps(){
   var steps=METHODS[state.m].steps, h='';
   steps.forEach(function(st,i){
+    var started=state.elapsed>0||state.running;
     var cls='srow';
-    if(state.elapsed>=st.t1) cls+=' done';
-    else if(state.elapsed>=st.t0) cls+=' active';
+    if(started&&state.elapsed>=st.t1) cls+=' done';
+    else if(started&&state.elapsed>=st.t0) cls+=' active';
     h+='<div class="'+cls+'"><div class="stime">'+fmt(st.t0)+' - '+fmt(st.t1)+'</div>'+
       '<div><span class="slabel">'+st.label+'</span> &middot; <span class="starget">'+tgt(st.frac)+' g total</span>'+
       '<div class="snote">'+st.note+'</div></div></div>';
